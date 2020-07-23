@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "cpu",
+    "cpufreq",
+    "mem",
+    "waybar",
+]

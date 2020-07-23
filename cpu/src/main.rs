@@ -1,6 +1,5 @@
 use anyhow::Result;
 use humantime::Duration;
-use std::time::Instant;
 use std::{fs, str};
 use structopt::StructOpt;
 use waybar::{History, Loop, Output, Percentage};
@@ -71,14 +70,12 @@ fn main() -> Result<()> {
 
 #[derive(Debug)]
 struct Snapshot {
-    at: Instant,
     states: Vec<u64>,
 }
 
 impl Snapshot {
     fn parse(raw: &str) -> Result<Self> {
         Ok(Self {
-            at: Instant::now(),
             states: raw
                 .split_whitespace()
                 .skip(1)

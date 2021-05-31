@@ -1,9 +1,9 @@
 # Waybar custom modules
 
-This repo contains three custom module providers for Waybar. Each provider is a
+This repo contains four custom module providers for Waybar. Each provider is a
 binary that you can configure Waybar to use with its custom module support, and
 you'll get something useful. Most notably, you can also generate sparklines
-with each module.
+with the CPU and memory related modules.
 
 ![Custom modules in action](./waybar.png)
 
@@ -14,6 +14,8 @@ The available modules are:
 * `cpufreq`: a module to render the current average CPU frequency.
 * `mem`: a clone of Waybar's built in memory module, except with sparkline
   support.
+* `webcam`: a module that detects if a webcam is attached and displays an
+  appropriate icon.
 
 ## Platform support
 
@@ -23,6 +25,8 @@ The [cpufreq](#cpufreq) module also requires cpufreq directories to be
 available in sysfs. (They probably are if you're on an Intel or AMD processor
 and a recent kernel, but YMMV, and I'm certainly not an expert on this.)
 
+The [webcam](#webcam) module requires libudev.
+
 ## Building
 
 This is a fairly standard Rust project: `cargo build` will give you binaries in
@@ -31,7 +35,7 @@ This is a fairly standard Rust project: `cargo build` will give you binaries in
 
 ## Common options
 
-Each binary accepts the same general options:
+Except for `webcam`, each binary accepts the same general options:
 
 * `--sparkline N`: if `N` is greater than 1, then the output will be formatted
   for use with the [Sparks font](https://github.com/aftertheflood/sparks),
@@ -87,3 +91,40 @@ OK, so how do we get the sparklines going?
     }
     ```
 5. Restart `waybar` and hope for the best.
+
+## webcam
+
+The webcam module is simpler than the others: it uses udev to monitor if a
+video device is attached. Useful if your USB hub is a little flaky first thing
+in the morning, you don't always have a video device available even when you
+think it's plugged in, and you're often cutting it _real_ fine to make that
+Zoom sync.
+
+The defaults should be reasonable, but it does take a handful of options:
+`cargo run --bin webcam -- --help` will give you the set.
+
+To configure it into Waybar, something like this should do:
+
+```json
+    "custom/webcam": {
+        "format": "{}",
+        "exec": "$WCM_PATH/webcam",
+        "return-type": "json"
+    }
+```
+
+The default output uses Font Awesome icons. You _probably_ have this configured
+already, since Waybar's defaults use it, but if not you'll want something like
+this for that module:
+
+```css
+#custom-webcam {
+    font-family: "Font Awesome 5 Free", sans-serif;
+}
+
+#custom-webcam.not-found {
+    opacity: 0.2;
+}
+```
+
+Replace `sans-serif` with whatever font you use elsewhere on Waybar.

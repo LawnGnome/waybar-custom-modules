@@ -3,6 +3,7 @@ members = [
     "cpu",
     "cpufreq",
     "mem",
+    "swaync",
     "waybar",
     "webcam",
 ]

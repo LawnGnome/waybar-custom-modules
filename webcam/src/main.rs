@@ -138,14 +138,14 @@ impl Formatter {
             json::to_string(&if found {
                 Output {
                     tooltip: "Camera connected".into(),
-                    class: "found".into(),
+                    class: vec!["found".into()],
                     percentage: 100,
                     text: self.found.clone(),
                 }
             } else {
                 Output {
                     tooltip: "Camera not connected".into(),
-                    class: "not-found".into(),
+                    class: vec!["not-found".into()],
                     percentage: 0,
                     text: self.not_found.clone(),
                 }

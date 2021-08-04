@@ -24,6 +24,7 @@ struct Opt {
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
+    let classes = vec![opt.class.into()];
 
     // Set up the history. We'll constrain the sparkline to a maximum of 10
     // historical values.
@@ -42,7 +43,7 @@ fn main() -> Result<()> {
             let mut output = Output {
                 text: String::new(),
                 tooltip: String::new(),
-                class: String::new(),
+                class: classes.clone(),
                 percentage: 0,
             };
 

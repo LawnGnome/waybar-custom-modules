@@ -35,6 +35,7 @@ struct Opt {
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
+    let classes = vec![opt.class.into()];
 
     // Enumerate cores.
     let cores = CPU::discover(&opt.sysfs_cpu_path)?;
@@ -59,7 +60,7 @@ fn main() -> Result<()> {
             Ok(Output {
                 text: history.to_string(|p| p.as_u8()),
                 tooltip: format_tooltip(&freqs),
-                class: opt.class.clone(),
+                class: classes.clone(),
                 percentage: perc.as_u8().into(),
             })
         },

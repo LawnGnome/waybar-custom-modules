@@ -38,7 +38,7 @@ where
 pub struct Output {
     pub text: String,
     pub tooltip: String,
-    pub class: String,
+    pub class: Vec<String>,
     pub percentage: i32,
 }
 

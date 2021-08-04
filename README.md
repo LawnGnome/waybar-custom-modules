@@ -1,6 +1,6 @@
 # Waybar custom modules
 
-This repo contains four custom module providers for Waybar. Each provider is a
+This repo contains five custom module providers for Waybar. Each provider is a
 binary that you can configure Waybar to use with its custom module support, and
 you'll get something useful. Most notably, you can also generate sparklines
 with the CPU and memory related modules.
@@ -14,6 +14,8 @@ The available modules are:
 * `cpufreq`: a module to render the current average CPU frequency.
 * `mem`: a clone of Waybar's built in memory module, except with sparkline
   support.
+* `swaync`: a module that integrates with
+  [swaync](https://github.com/ErikReider/SwayNotificationCenter).
 * `webcam`: a module that detects if a webcam is attached and displays an
   appropriate icon.
 
@@ -25,6 +27,8 @@ The [cpufreq](#cpufreq) module also requires cpufreq directories to be
 available in sysfs. (They probably are if you're on an Intel or AMD processor
 and a recent kernel, but YMMV, and I'm certainly not an expert on this.)
 
+The [swaync](#swaync) module requires libdbus.
+
 The [webcam](#webcam) module requires libudev.
 
 ## Building
@@ -35,7 +39,7 @@ This is a fairly standard Rust project: `cargo build` will give you binaries in
 
 ## Common options
 
-Except for `webcam`, each binary accepts the same general options:
+Except for `swaync` and `webcam`, each binary accepts the same general options:
 
 * `--sparkline N`: if `N` is greater than 1, then the output will be formatted
   for use with the [Sparks font](https://github.com/aftertheflood/sparks),
@@ -91,6 +95,34 @@ OK, so how do we get the sparklines going?
     }
     ```
 5. Restart `waybar` and hope for the best.
+
+## swaync
+
+The swaync module is only useful if you use
+[swaync](https://github.com/ErikReider/SwayNotificationCenter): if not, you can
+safely ignore it.
+
+Configuration might look something like this:
+
+```json
+    "custom/notifications": {
+        "format": "{icon} {}",
+        "format-icons": ["", ""],
+        "exec": "$WCM_PATH/swaync",
+        "on-click": "swaync-client -t",
+        "return-type": "json"
+    }
+```
+
+This uses an open envelope icon when there are notifications, and configures
+the notification centre to toggle when clicked. You can also fade the icon when
+Do Not Disturb mode is active with something like this in your stylesheet:
+
+```css
+#custom-notifications.dnd {
+    opacity: 0.5;
+}
+```
 
 ## webcam
 

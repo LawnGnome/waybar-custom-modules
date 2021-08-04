@@ -11,6 +11,7 @@ use dbus::{
     blocking::{Proxy, SyncConnection},
     Message,
 };
+use thiserror::Error;
 
 mod raw {
     include!(concat!(env!("OUT_DIR"), "/swaync.rs"));
@@ -28,7 +29,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> Result<Self, Error> {
         Self::new_with_args(
             "org.erikreider.swaync.cc",
             "/org/erikreider/swaync/cc",
@@ -36,7 +37,7 @@ impl Client {
         )
     }
 
-    pub fn new_with_args(dest: &str, path: &str, timeout: Duration) -> anyhow::Result<Self> {
+    pub fn new_with_args(dest: &str, path: &str, timeout: Duration) -> Result<Self, Error> {
         Ok(Self {
             conn: SyncConnection::new_session()?,
             dest: dest.into(),
@@ -46,19 +47,15 @@ impl Client {
         })
     }
 
-    fn proxy(&self) -> Proxy<&SyncConnection> {
-        self.conn.with_proxy(&self.dest, &self.path, self.timeout)
-    }
-
-    pub fn get_dnd(&self) -> anyhow::Result<bool> {
+    pub fn get_dnd(&self) -> Result<bool, Error> {
         Ok(self.proxy().get_dnd()?)
     }
 
-    pub fn notification_count(&self) -> anyhow::Result<u32> {
+    pub fn notification_count(&self) -> Result<u32, Error> {
         Ok(self.proxy().notification_count()?)
     }
 
-    pub fn subscribe<F>(&self, f: F) -> anyhow::Result<()>
+    pub fn subscribe<F>(&self, f: F) -> Result<(), Error>
     where
         F: Fn(raw::OrgErikreiderSwayncCcSubscribe) -> bool + 'static + Send + Sync,
     {
@@ -98,13 +95,17 @@ impl Client {
         Ok(())
     }
 
-    pub fn toggle_dnd(&self) -> anyhow::Result<()> {
+    pub fn toggle_dnd(&self) -> Result<(), Error> {
         self.proxy().toggle_dnd()?;
         Ok(())
     }
 
-    pub fn toggle_visibility(&self) -> anyhow::Result<()> {
+    pub fn toggle_visibility(&self) -> Result<(), Error> {
         Ok(self.proxy().toggle_visibility()?)
+    }
+
+    fn proxy(&self) -> Proxy<&SyncConnection> {
+        self.conn.with_proxy(&self.dest, &self.path, self.timeout)
     }
 }
 
@@ -113,4 +114,10 @@ impl Drop for Client {
         dbg!("drop");
         self.done.store(true, Ordering::Relaxed);
     }
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("D-Bus error")]
+    DBus(#[from] dbus::Error),
 }

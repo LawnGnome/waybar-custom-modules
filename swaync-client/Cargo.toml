@@ -6,7 +6,6 @@ edition = "2018"
 [dependencies]
 anyhow = "1"
 dbus = "0.9"
-ouroboros = "0.10"
 thiserror = "1"
 
 [build-dependencies]

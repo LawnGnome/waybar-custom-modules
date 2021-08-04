@@ -1,5 +1,8 @@
 use std::{
-    sync::{mpsc, Arc},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread,
     time::Duration,
 };
@@ -8,7 +11,6 @@ use dbus::{
     blocking::{Proxy, SyncConnection},
     Message,
 };
-use ouroboros::self_referencing;
 
 mod raw {
     include!(concat!(env!("OUT_DIR"), "/swaync.rs"));
@@ -16,18 +18,13 @@ mod raw {
 
 use raw::OrgErikreiderSwayncCc;
 
-#[self_referencing]
-struct ClientImpl {
-    conn: SyncConnection,
-
-    #[borrows(conn)]
-    #[covariant]
-    proxy: Proxy<'this, &'this SyncConnection>,
-}
-
 pub struct Client {
-    client: Arc<ClientImpl>,
-    done: mpsc::Sender<()>,
+    conn: SyncConnection,
+    dest: String,
+    path: String,
+    timeout: Duration,
+
+    done: Arc<AtomicBool>,
 }
 
 impl Client {
@@ -40,82 +37,80 @@ impl Client {
     }
 
     pub fn new_with_args(dest: &str, path: &str, timeout: Duration) -> anyhow::Result<Self> {
-        let conn = SyncConnection::new_session()?;
-        let dest = String::from(dest);
-        let path = String::from(path);
+        Ok(Self {
+            conn: SyncConnection::new_session()?,
+            dest: dest.into(),
+            path: path.into(),
+            timeout,
+            done: Arc::new(AtomicBool::new(false)),
+        })
+    }
 
-        let client: Arc<ClientImpl> = Arc::new(
-            ClientImplBuilder {
-                conn: conn,
-                proxy_builder: |conn| conn.with_proxy(dest, path, timeout),
-            }
-            .build(),
-        );
-
-        let (done, rx) = mpsc::channel();
-        let conn_proc = client.clone();
-        thread::spawn(move || {
-            // dbg!("client thread starting");
-            loop {
-                conn_proc
-                    .borrow_conn()
-                    .process(Duration::from_secs(1))
-                    .unwrap();
-
-                // We should get a message in all normal cases here indicating that
-                // the thread should stop, but we'll handle an unexpected
-                // disconnection gracefully as well just in case.
-                match rx.try_recv() {
-                    Ok(_) => {
-                        // dbg!("client thread stopping due to done message");
-                        break;
-                    }
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        // dbg!("client thread stopping due to disconnection");
-                        break;
-                    }
-                    _ => {}
-                }
-                // dbg!("client thread spinning");
-            }
-            // dbg!("client thread for real exiting");
-        });
-
-        Ok(Self { client, done })
+    fn proxy(&self) -> Proxy<&SyncConnection> {
+        self.conn.with_proxy(&self.dest, &self.path, self.timeout)
     }
 
     pub fn get_dnd(&self) -> anyhow::Result<bool> {
-        Ok(self.client.borrow_proxy().get_dnd()?)
+        Ok(self.proxy().get_dnd()?)
     }
 
     pub fn notification_count(&self) -> anyhow::Result<u32> {
-        Ok(self.client.borrow_proxy().notification_count()?)
+        Ok(self.proxy().notification_count()?)
     }
 
     pub fn subscribe<F>(&self, f: F) -> anyhow::Result<()>
     where
         F: Fn(raw::OrgErikreiderSwayncCcSubscribe) -> bool + 'static + Send + Sync,
     {
-        self.client.borrow_proxy().match_signal(
+        // Hard won knowledge somewhat indirectly derived from
+        // https://github.com/diwic/dbus-rs/discussions/303 is used in this
+        // function: basically, blocking Connection instances don't handle
+        // bidirectional communication very well. Implementing non-blocking
+        // turned out to be non-trivial, seemingly due to immaturity in the
+        // non-blocking signal API, so instead we'll leverage the (relative)
+        // cheapness of creating new D-Bus connections and have one per
+        // subscription.
+        //
+        // With that decision made, the only important part is that the
+        // match_signal() call must be before the first process() call. The
+        // easiest way to ensure that is to avoid spawning the processing thread
+        // until after match_signal() is done.
+
+        let conn = Arc::new(SyncConnection::new_session()?);
+        let dest = self.dest.clone();
+        let path = self.path.clone();
+        let timeout = self.timeout;
+
+        let proxy = conn.with_proxy(&dest, &path, timeout);
+        proxy.match_signal(
             move |s: raw::OrgErikreiderSwayncCcSubscribe, _: &SyncConnection, _: &Message| f(s),
         )?;
+
+        let conn_proc = conn.clone();
+        let done_proc = self.done.clone();
+        thread::spawn(move || loop {
+            if done_proc.load(Ordering::Relaxed) {
+                break;
+            }
+            conn_proc.process(Duration::from_secs(1)).unwrap();
+        });
 
         Ok(())
     }
 
     pub fn toggle_dnd(&self) -> anyhow::Result<()> {
-        self.client.borrow_proxy().toggle_dnd()?;
+        self.proxy().toggle_dnd()?;
         Ok(())
     }
 
     pub fn toggle_visibility(&self) -> anyhow::Result<()> {
-        Ok(self.client.borrow_proxy().toggle_visibility()?)
+        Ok(self.proxy().toggle_visibility()?)
     }
 }
 
 impl Drop for Client {
     fn drop(&mut self) {
         dbg!("drop");
-        let _ = self.done.send(());
+        self.done.store(true, Ordering::Relaxed);
     }
 }

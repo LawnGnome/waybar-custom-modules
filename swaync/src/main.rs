@@ -38,13 +38,20 @@ fn main() -> Result<()> {
 }
 
 fn output(class: &str, locale: &SystemLocale, count: u32, dnd: bool) {
-    let classes = format!("{} {}", class, if dnd { "dnd" } else { "disturb" });
+    let classes = vec![
+        class,
+        if dnd { "dnd" } else { "disturb" },
+        if count == 0 { "empty" } else { "has" },
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
 
     if count == 0 {
         Output {
             text: "".into(),
             tooltip: "No notifications".into(),
-            class: format!("{} empty", classes),
+            class: classes,
             percentage: 0,
         }
     } else {
@@ -55,7 +62,7 @@ fn output(class: &str, locale: &SystemLocale, count: u32, dnd: bool) {
                 count.to_formatted_string(locale),
                 if count != 1 { "s" } else { "" }
             ),
-            class: format!("{} has", classes),
+            class: classes,
             percentage: 100,
         }
     }

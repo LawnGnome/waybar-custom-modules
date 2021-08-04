@@ -1,65 +1,63 @@
-use std::process::Command;
+use std::sync::mpsc;
 
 use anyhow::Result;
-use atoi::atoi;
-use humantime::Duration;
 use num_format::{SystemLocale, ToFormattedString};
 use structopt::StructOpt;
-use waybar::{Loop, Output};
+use swaync_client::Client;
+use waybar::Output;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
     #[structopt(short, long, default_value = "swaync", help = "CSS class")]
     class: String,
-
-    #[structopt(short, long, default_value = "1s", help = "interval between updates")]
-    interval: Duration,
-
-    #[structopt(
-        short,
-        long,
-        default_value = "swaync-client",
-        help = "path to swaync-client"
-    )]
-    swaync_client: String,
 }
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
     let locale = SystemLocale::default()?;
+    let client = Client::new()?;
 
-    Loop::new(
-        || {
-            let output = atoi::<u32>(&Command::new(&opt.swaync_client).arg("-c").output()?.stdout);
+    output(
+        &opt.class,
+        &locale,
+        client.notification_count()?,
+        client.get_dnd()?,
+    );
 
-            Ok(match output {
-                Some(count) if count == 0 => Output {
-                    text: "".into(),
-                    tooltip: "No notifications".into(),
-                    class: format!("{} empty", &opt.class),
-                    percentage: 0,
-                },
-                Some(count) => Output {
-                    text: format!("{}", count),
-                    tooltip: format!(
-                        "{} notification{}",
-                        count.to_formatted_string(&locale),
-                        if count != 1 { "s" } else { "" }
-                    ),
-                    class: format!("{} has", &opt.class),
-                    percentage: 100,
-                },
-                None => Output {
-                    text: "??".into(),
-                    tooltip: "Error calling swaync-client".into(),
-                    class: format!("{} error", &opt.class),
-                    percentage: 50,
-                },
-            })
-        },
-        &opt.interval.into(),
-    )
-    .run()?;
+    client.subscribe(move |state| {
+        output(&opt.class, &locale, state.count, state.dnd);
+        true
+    })?;
 
-    Ok(())
+    let (tx, rx) = mpsc::channel();
+    ctrlc::set_handler(move || {
+        tx.send(()).unwrap();
+    })?;
+
+    Ok(rx.recv()?)
+}
+
+fn output(class: &str, locale: &SystemLocale, count: u32, dnd: bool) {
+    let classes = format!("{} {}", class, if dnd { "dnd" } else { "disturb" });
+
+    if count == 0 {
+        Output {
+            text: "".into(),
+            tooltip: "No notifications".into(),
+            class: format!("{} empty", classes),
+            percentage: 0,
+        }
+    } else {
+        Output {
+            text: format!("{}", count),
+            tooltip: format!(
+                "{} notification{}",
+                count.to_formatted_string(locale),
+                if count != 1 { "s" } else { "" }
+            ),
+            class: format!("{} has", classes),
+            percentage: 100,
+        }
+    }
+    .send();
 }

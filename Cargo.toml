@@ -4,6 +4,7 @@ members = [
     "cpufreq",
     "mem",
     "swaync",
+    "swaync-client",
     "waybar",
     "webcam",
 ]

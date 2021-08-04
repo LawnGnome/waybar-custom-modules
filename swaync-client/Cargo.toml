@@ -1,0 +1,17 @@
+[package]
+name = "swaync-client"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+anyhow = "1"
+dbus = "0.9"
+ouroboros = "0.10"
+thiserror = "1"
+
+[build-dependencies]
+anyhow = "1"
+dbus = "0.9"
+dbus-codegen = "0.9"
+quick-xml = { version = "0.22", features = ["serialize"] }
+serde = { version = "1", features = ["derive"] }

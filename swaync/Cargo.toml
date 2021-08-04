@@ -8,9 +8,9 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
-atoi = "0.4"
-humantime = "2.0"
+ctrlc = { version = "3", features = ["termination"] }
 num-format = { version = "0.4", features = ["with-system-locale"] }
 structopt = "0.3"
+swaync-client = { path = "../swaync-client" }
 thiserror = "1.0"
 waybar = { path = "../waybar" }

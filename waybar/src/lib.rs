@@ -15,14 +15,6 @@ pub struct Loop<F> {
     interval: Duration,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Output {
-    pub text: String,
-    pub tooltip: String,
-    pub class: String,
-    pub percentage: i32,
-}
-
 impl<F> Loop<F>
 where
     F: FnMut() -> Result<Output>,
@@ -36,8 +28,26 @@ where
 
     pub fn run(&mut self) -> Result<()> {
         loop {
-            println!("{}", json::to_string(&(self.callback)()?));
+            (self.callback)()?.send();
             sleep(self.interval);
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct Output {
+    pub text: String,
+    pub tooltip: String,
+    pub class: String,
+    pub percentage: i32,
+}
+
+impl Output {
+    pub fn send(&self) {
+        println!("{}", self.to_json());
+    }
+
+    pub fn to_json(&self) -> String {
+        json::to_string(self)
     }
 }

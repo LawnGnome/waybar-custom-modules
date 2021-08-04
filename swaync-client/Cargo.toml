@@ -5,12 +5,12 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
-dbus = "0.9"
-thiserror = "1"
+dbus = "0.9.3"
+thiserror = "1.0.26"
 
 [build-dependencies]
-anyhow = "1"
-dbus = "0.9"
-dbus-codegen = "0.9"
-quick-xml = { version = "0.22", features = ["serialize"] }
-serde = { version = "1", features = ["derive"] }
+anyhow = "1.0.42"
+dbus = "0.9.3"
+dbus-codegen = "0.9.1"
+quick-xml = { version = "0.22.0", features = ["serialize"] }
+serde = { version = "1.0.127", features = ["derive"] }
